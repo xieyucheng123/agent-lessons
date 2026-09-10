@@ -18,10 +18,11 @@ opencode provider tokyo ────────► http://127.0.0.1:18081/zen/v
                                                                                               │
                                                            ┌────────────────────────┬───────────┴────────────┐
                                                            ▼                        ▼                        ▼
-                                              <VM_PROXY_IP>:8443            :9443                    :10443
+                                              <VM_PROXY_HOST>:8443           :9443                    :10443
                                               (eg-in-1 → eg-out-1)          (eg-in-2 → eg-out-2)     (eg-in-3 → eg-out-3)
                                               私网 IP #1                    #2                       #3
 ```
+（`<VM_PROXY_HOST>` 填域名，不要填裸 IP，理由见第 2 节。）
 
 - Go：固定单一出口（本环境实测是 vm-proxy 全机唯一的 v6 地址，见第 5 节）。
 - Zen：v4 三池轮换，`urltest` 每小时测速 + `tolerance` 防抖（坏 IP 最多赖 1h，
@@ -45,6 +46,9 @@ opencode provider tokyo ────────► http://127.0.0.1:18081/zen/v
   对外收口靠 compose 映射 `127.0.0.1:2081:2081`。
 - `route.rules` **首位**加 `inbound: [<2081 入口 tag>] → outbound: proxy`（固定出站），
   原有 `opencode.ai → pool-auto` 等规则顺序不动。
+- 所有 vless 出站（含 `proxy` 与三个池子）的 `server` **一律填域名 `<VM_PROXY_HOST>`，
+  不要填裸 IP**：REALITY 认的是 `pbk` + 伪装 SNI，不校验拨号地址，域名/IP 效果一样；
+  但服务器公网 IP 万一变了，改一条 DNS 解析所有客户端自动跟，填死 IP 则要逐台改配置。
 - `pool-auto`（urltest）：`interval: 1h`（测速间隔），`tolerance` 防抖，
   **`idle_timeout` 必须 ≥ `interval`**（曾配成 interval 1h + idle_timeout 30m，
   sing-box 直接 FATAL 死循环重启，见 §6.1）。
